@@ -140,45 +140,6 @@
             color: #666;
         }
 
-        .mobile-dpad {
-            position: fixed;
-            bottom: 25px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
-            z-index: 200;
-        }
-
-        .dpad-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 60px);
-            grid-template-rows: repeat(3, 60px);
-            gap: 4px;
-        }
-
-        .dpad-btn {
-            width: 60px;
-            height: 60px;
-            border: none;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.15);
-            color: white;
-            font-size: 1.6em;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .dpad-btn:active {
-            background: rgba(255,255,255,0.35);
-            transform: scale(0.95);
-        }
-
-        .dpad-empty {
-            background: transparent !important;
-            pointer-events: none;
-        }
-
         .controls-hint {
             position: fixed;
             bottom: 12px;
@@ -257,8 +218,6 @@
         .modal-btn.gold { background: linear-gradient(135deg, #ffd700, #daa520); color: #111; }
 
         @media (max-width: 900px) {
-            .mobile-dpad { display: block; }
-            .controls-hint { display: none; }
             .ui-overlay { flex-wrap: wrap; }
             .ui-panel { padding: 8px 10px; font-size: 0.8em; }
             .ui-center { order: -1; width: 100%; }
@@ -300,7 +259,7 @@
 
         <div class="ui-panel ui-center">
             <div class="level-title">⛏️ LIVELLO <span id="level-num">1</span>/10</div>
-            <div class="level-sub">Profondità: <span id="depth-val">0</span>m</div>
+            <div class="level-sub">Profondità: <span id="depth-val">0</span>m | Mostri: <span id="monsters-val">0</span></div>
             <div class="progress-section">
                 <div class="bar-bg" style="height:10px;">
                     <div class="bar-fill progress-fill" id="progress-bar"></div>
@@ -310,7 +269,7 @@
         </div>
 
         <div class="ui-panel ui-right">
-            <div class="inv-title">🎒 Inventario (Livello)</div>
+            <div class="inv-title">🎒 Inventario</div>
             <div id="inventory-display"></div>
             <div class="stats-extra">
                 👾 Uccisioni: <span id="kills-val">0</span><br>
@@ -319,21 +278,7 @@
         </div>
     </div>
 
-    <div class="mobile-dpad">
-        <div class="dpad-grid">
-            <div class="dpad-btn dpad-empty"></div>
-            <button class="dpad-btn" id="btn-up">▲</button>
-            <div class="dpad-btn dpad-empty"></div>
-            <button class="dpad-btn" id="btn-left">◀</button>
-            <div class="dpad-btn dpad-empty"></div>
-            <button class="dpad-btn" id="btn-right">▶</button>
-            <div class="dpad-btn dpad-empty"></div>
-            <button class="dpad-btn" id="btn-down">▼</button>
-            <div class="dpad-btn dpad-empty"></div>
-        </div>
-    </div>
-
-    <div class="controls-hint">WASD o Frecce per muoversi</div>
+    <div class="controls-hint">WASD o Frecce per muoversi | Tieni premuto per scavare</div>
 
     <!-- Start -->
     <div class="modal active" id="modal-start">
@@ -345,7 +290,7 @@
             <p>Esplora le gallerie, raccogli materiali.</p>
             <p>Sopravvivi fino al <strong style="color:#ffd700;">Livello 10</strong> per vincere!</p>
             <p class="highlight" style="margin-top:12px;">⚠️ Creature ostili dal Livello 2!</p>
-            <p style="color:#888; font-size:0.85em; margin-top:10px;">L'inventario si resetta ogni livello!</p>
+            <p style="color:#888; font-size:0.85em; margin-top:10px;">⛏️ Tieni premuto per scavare i minerali!</p>
             <button class="modal-btn" onclick="startGame()">▶️ INIZIA</button>
         </div>
     </div>
@@ -404,6 +349,9 @@
         const MAX_LEVEL = 10;
         const LIGHT_RADIUS = 5.5;
 
+        // VELOCITÀ DI MOVIMENTO (più alto = più lento)
+        const MOVE_COOLDOWN = 180; // millisecondi tra ogni passo
+
         const T = {
             AIR: 0, DIRT: 1, STONE: 2, COAL: 3, IRON: 4,
             GOLD: 5, DIAMOND: 6, RUBY: 7, BEDROCK: 8, MUSHROOM: 9
@@ -420,6 +368,19 @@
             [T.RUBY]: '#9b111e',
             [T.BEDROCK]: '#0a0a0a',
             [T.MUSHROOM]: '#4a3728'
+        };
+
+        // Tempo di scavo per ogni minerale (in millisecondi)
+        const MINING_TIME = {
+            [T.DIRT]: 200,
+            [T.STONE]: 400,
+            [T.COAL]: 500,
+            [T.IRON]: 700,
+            [T.GOLD]: 900,
+            [T.DIAMOND]: 1300,
+            [T.RUBY]: 1800,
+            [T.MUSHROOM]: 150,
+            [T.BEDROCK]: Infinity
         };
 
         const TILE_DATA = {
@@ -446,51 +407,52 @@
         let world = [];
         let player = {};
         let creatures = [];
-        let inventory = {};          // Inventario del livello corrente (si resetta)
-        let totalMined = {};         // Totale materiali minati (per statistiche)
+        let inventory = {};
+        let totalMined = {};
         let gameData = {};
         let keys = {};
         let gameRunning = false;
 
-        // Level requirements - RIBILANCIATI
+        // Mining state
+        let mining = {
+            active: false,
+            x: 0,
+            y: 0,
+            progress: 0,
+            required: 0,
+            tile: 0
+        };
+
+        // Movement state
+        let lastMoveTime = 0;
+        let currentMoveDir = { dx: 0, dy: 0 };
+
+        // Level requirements
         function getRequirements(lvl) {
             const req = {};
-            
-            // Pietra e carbone sempre richiesti
             req.stone = 6 + lvl * 2;
             req.coal = 4 + lvl;
-            
-            // Ferro dal livello 2
             if (lvl >= 2) req.iron = 2 + Math.floor(lvl * 0.8);
-            
-            // Oro dal livello 3
             if (lvl >= 3) req.gold = 1 + Math.floor(lvl * 0.5);
-            
-            // Diamanti dal livello 5
             if (lvl >= 5) req.diamond = Math.floor(lvl * 0.3);
-            
-            // Rubini dal livello 7
             if (lvl >= 7) req.ruby = Math.floor((lvl - 6) * 0.5);
-            
             return req;
         }
 
-        // Reset inventory for new level
-        function resetLevelInventory() {
-            inventory = { 
-                stone: 0, 
-                coal: 0, 
-                iron: 0, 
-                gold: 0, 
-                diamond: 0, 
-                ruby: 0 
-            };
+        function getCreatureCount(lvl) {
+            if (lvl <= 1) return 0;
+            const base = lvl;
+            const bonus = Math.floor(lvl / 2);
+            return base + bonus;
         }
 
-        // World generation with tunnels
+        function resetLevelInventory() {
+            inventory = { stone: 0, coal: 0, iron: 0, gold: 0, diamond: 0, ruby: 0 };
+        }
+
+        // World generation
         function generateWorld() {
             world = [];
-            
             for (let y = 0; y < WORLD_H; y++) {
                 const row = [];
                 for (let x = 0; x < WORLD_W; x++) {
@@ -498,41 +460,32 @@
                 }
                 world.push(row);
             }
-
             generateTunnels();
             carveRoom(Math.floor(WORLD_W / 2), 10, 6, 5);
         }
 
         function genTile(y) {
             if (y >= WORLD_H - 1) return T.BEDROCK;
-            
             const r = Math.random() * 100;
             const depth = y / WORLD_H;
 
-            // Più funghi per sopravvivenza
             if (r < 1.8 && y > 8) return T.MUSHROOM;
-            
-            // Minerali rari in profondità
             if (depth > 0.6 && r < 2.5) return T.RUBY;
             if (depth > 0.4 && r < 5) return T.DIAMOND;
             if (depth > 0.2 && r < 8) return T.GOLD;
             if (depth > 0.1 && r < 14) return T.IRON;
             if (r < 20) return T.COAL;
             if (y > 15 || r < 50) return T.STONE;
-            
             return T.DIRT;
         }
 
         function generateTunnels() {
-            // Tunnel verticali principali
             for (let i = 0; i < 10; i++) {
                 const x = 8 + Math.floor(Math.random() * (WORLD_W - 16));
                 const startY = 5 + Math.floor(Math.random() * 15);
                 const length = 40 + Math.floor(Math.random() * 100);
                 carveVerticalTunnel(x, startY, length);
             }
-
-            // Tunnel orizzontali
             for (let i = 0; i < 35; i++) {
                 const y = 8 + Math.floor(Math.random() * (WORLD_H - 40));
                 const startX = Math.floor(Math.random() * WORLD_W);
@@ -540,8 +493,6 @@
                 const dir = Math.random() > 0.5 ? 1 : -1;
                 carveHorizontalTunnel(startX, y, length, dir);
             }
-
-            // Caverne
             for (let i = 0; i < 50; i++) {
                 const x = 5 + Math.floor(Math.random() * (WORLD_W - 10));
                 const y = 12 + Math.floor(Math.random() * (WORLD_H - 25));
@@ -549,8 +500,6 @@
                 const h = 2 + Math.floor(Math.random() * 4);
                 carveRoom(x, y, w, h);
             }
-
-            // Tunnel serpeggianti
             for (let i = 0; i < 20; i++) {
                 const startX = Math.floor(Math.random() * WORLD_W);
                 const startY = 15 + Math.floor(Math.random() * (WORLD_H - 35));
@@ -563,7 +512,7 @@
             for (let y = startY; y < startY + length && y < WORLD_H - 1; y++) {
                 for (let dx = -width; dx <= width; dx++) {
                     const nx = x + dx;
-                    if (nx >= 0 && nx < WORLD_W && world[y][nx] !== T.BEDROCK) {
+                    if (nx >= 0 && nx < WORLD_W && world[y] && world[y][nx] !== T.BEDROCK) {
                         world[y][nx] = T.AIR;
                     }
                 }
@@ -590,8 +539,7 @@
         }
 
         function carveWindingTunnel(startX, startY, length) {
-            let x = startX;
-            let y = startY;
+            let x = startX, y = startY;
             let dirX = Math.random() > 0.5 ? 1 : -1;
             let dirY = Math.random() > 0.5 ? 1 : -1;
 
@@ -599,8 +547,7 @@
                 if (x >= 0 && x < WORLD_W && y >= 0 && y < WORLD_H - 1) {
                     for (let dy = 0; dy < 2; dy++) {
                         for (let dx = 0; dx < 2; dx++) {
-                            const nx = x + dx;
-                            const ny = y + dy;
+                            const nx = x + dx, ny = y + dy;
                             if (nx >= 0 && nx < WORLD_W && ny >= 0 && ny < WORLD_H - 1) {
                                 if (world[ny] && world[ny][nx] !== T.BEDROCK) {
                                     world[ny][nx] = T.AIR;
@@ -609,10 +556,8 @@
                         }
                     }
                 }
-
                 if (Math.random() < 0.3) dirX = Math.random() > 0.5 ? 1 : -1;
                 if (Math.random() < 0.2) dirY = Math.random() > 0.5 ? 1 : -1;
-
                 x += dirX;
                 y += Math.random() > 0.6 ? dirY : 0;
             }
@@ -633,22 +578,32 @@
         // Spawn creatures
         function spawnCreatures() {
             creatures = [];
-            const count = gameData.level - 1;
+            const count = getCreatureCount(gameData.level);
             if (count <= 0) return;
 
-            const typeIdx = Math.min(gameData.level - 2, CREATURES.length - 1);
-            const baseType = CREATURES[typeIdx];
-            const scale = 1 + (gameData.level - 2) * 0.15;
-
             for (let i = 0; i < count; i++) {
+                let typeIdx;
+                if (gameData.level <= 3) {
+                    typeIdx = Math.floor(Math.random() * 2);
+                } else if (gameData.level <= 5) {
+                    typeIdx = Math.floor(Math.random() * 3);
+                } else if (gameData.level <= 7) {
+                    typeIdx = Math.floor(Math.random() * 4);
+                } else {
+                    typeIdx = Math.floor(Math.random() * CREATURES.length);
+                }
+
+                const baseType = CREATURES[typeIdx];
+                const scale = 1 + (gameData.level - 2) * 0.12;
+
                 let x, y, attempts = 0;
                 do {
                     x = Math.floor(Math.random() * WORLD_W);
-                    y = player.y + 8 + Math.floor(Math.random() * 25);
+                    y = player.y + 5 + Math.floor(Math.random() * 30);
                     attempts++;
                 } while (attempts < 60 && (
-                    !world[y] || world[y][x] !== T.AIR || 
-                    Math.abs(x - player.x) < 10 || Math.abs(y - player.y) < 8
+                    !world[y] || world[y][x] !== T.AIR ||
+                    Math.abs(x - player.x) < 8 || Math.abs(y - player.y) < 6
                 ));
 
                 creatures.push({
@@ -666,14 +621,16 @@
             }
         }
 
-        // Player movement
-        function movePlayer(dx, dy) {
+        // Player movement con cooldown
+        function tryMove(dx, dy) {
             if (!gameRunning) return;
 
             const now = Date.now();
-            if (now - player.lastMove < 100) return;
-            player.lastMove = now;
+            
+            // Salva la direzione corrente
+            currentMoveDir = { dx, dy };
 
+            // Aggiorna facing direction
             if (dx !== 0) player.facingRight = dx > 0;
 
             const nx = player.x + dx;
@@ -681,19 +638,102 @@
 
             if (nx < 0 || nx >= WORLD_W || ny < 0 || ny >= WORLD_H) return;
             if (!world[ny]) return;
-            
-            const tile = world[ny][nx];
-            if (tile === T.BEDROCK) return;
 
+            const tile = world[ny][nx];
+
+            // Controlla collisione con creature
             const creature = creatures.find(c => Math.round(c.x) === nx && Math.round(c.y) === ny);
             if (creature) {
-                attackCreature(creature);
+                // Attacco ha il suo cooldown
+                if (now - lastMoveTime >= MOVE_COOLDOWN) {
+                    attackCreature(creature);
+                    lastMoveTime = now;
+                }
+                mining.active = false;
                 return;
             }
 
-            if (tile !== T.AIR) {
-                mineTile(nx, ny, tile);
+            // Se è aria, muoviti (con cooldown)
+            if (tile === T.AIR) {
+                if (now - lastMoveTime >= MOVE_COOLDOWN) {
+                    movePlayer(nx, ny);
+                    lastMoveTime = now;
+                }
+                mining.active = false;
+                return;
             }
+
+            // Se è bedrock, non fare nulla
+            if (tile === T.BEDROCK) {
+                mining.active = false;
+                return;
+            }
+
+            // Altrimenti, inizia/continua a scavare
+            if (!mining.active || mining.x !== nx || mining.y !== ny) {
+                mining.active = true;
+                mining.x = nx;
+                mining.y = ny;
+                mining.progress = 0;
+                mining.required = MINING_TIME[tile] || 500;
+                mining.tile = tile;
+            }
+        }
+
+        function updateMining(dt) {
+            if (!mining.active || !gameRunning) return;
+
+            // Verifica che il giocatore stia ancora premendo verso il blocco
+            const dx = mining.x - player.x;
+            const dy = mining.y - player.y;
+
+            let stillMining = false;
+            if (dx === 1 && (keys['arrowright'] || keys['d'])) stillMining = true;
+            if (dx === -1 && (keys['arrowleft'] || keys['a'])) stillMining = true;
+            if (dy === 1 && (keys['arrowdown'] || keys['s'])) stillMining = true;
+            if (dy === -1 && (keys['arrowup'] || keys['w'])) stillMining = true;
+
+            if (!stillMining) {
+                mining.active = false;
+                mining.progress = 0;
+                return;
+            }
+
+            mining.progress += dt;
+
+            if (mining.progress >= mining.required) {
+                completeMining();
+            }
+        }
+
+        function completeMining() {
+            const tile = world[mining.y][mining.x];
+            const data = TILE_DATA[tile];
+
+            if (data) {
+                if (data.food) {
+                    player.hunger = Math.min(100, player.hunger + data.food);
+                }
+                if (data.inv) {
+                    inventory[data.inv] = (inventory[data.inv] || 0) + 1;
+                    totalMined[data.inv] = (totalMined[data.inv] || 0) + 1;
+                }
+            }
+
+            world[mining.y][mining.x] = T.AIR;
+            movePlayer(mining.x, mining.y);
+
+            mining.active = false;
+            mining.progress = 0;
+            lastMoveTime = Date.now(); // Reset cooldown dopo mining
+
+            checkLevelComplete();
+            updateUI();
+        }
+
+        function movePlayer(nx, ny) {
+            if (nx > player.x) player.facingRight = true;
+            else if (nx < player.x) player.facingRight = false;
 
             player.x = nx;
             player.y = ny;
@@ -701,26 +741,7 @@
             if (ny > gameData.maxDepth) gameData.maxDepth = ny;
             player.oxygen = Math.max(0, player.oxygen - 0.15);
 
-            checkLevelComplete();
             updateUI();
-        }
-
-        function mineTile(x, y, tile) {
-            const data = TILE_DATA[tile];
-            if (!data) return;
-
-            if (data.food) {
-                player.hunger = Math.min(100, player.hunger + data.food);
-            }
-            
-            if (data.inv) {
-                // Aggiungi all'inventario del livello corrente
-                inventory[data.inv] = (inventory[data.inv] || 0) + 1;
-                // Aggiungi anche al totale
-                totalMined[data.inv] = (totalMined[data.inv] || 0) + 1;
-            }
-
-            world[y][x] = T.AIR;
         }
 
         function attackCreature(c) {
@@ -745,14 +766,14 @@
 
             creatures.forEach(c => {
                 c.animFrame = (c.animFrame + 0.1) % 2;
-                
-                const interval = 450 / c.spd;
+
+                const interval = 500 / c.spd;
                 if (now - c.lastMove < interval) return;
                 c.lastMove = now;
 
                 const dx = player.x - c.x;
                 const dy = player.y - c.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
+                const dist = Math.sqrt(dx * dx + dy * dy);
 
                 let mx = 0, my = 0;
 
@@ -805,7 +826,6 @@
             }
 
             if (player.health <= 0) doGameOver();
-
             updateUI();
         }
 
@@ -821,23 +841,15 @@
             return count;
         }
 
-        // Level check - CORRETTO
         function checkLevelComplete() {
             const req = getRequirements(gameData.level);
-            
-            // Verifica che TUTTI i requisiti siano soddisfatti
             for (const [mat, amt] of Object.entries(req)) {
-                const have = inventory[mat] || 0;
-                if (have < amt) {
-                    return; // Non completato
-                }
+                if ((inventory[mat] || 0) < amt) return;
             }
-            
-            // Tutti i requisiti soddisfatti!
+
             gameRunning = false;
 
             if (gameData.level >= MAX_LEVEL) {
-                // Vittoria!
                 const totalItems = Object.values(totalMined).reduce((a, b) => a + b, 0);
                 document.getElementById('vic-depth').textContent = gameData.maxDepth;
                 document.getElementById('vic-kills').textContent = gameData.kills;
@@ -845,7 +857,7 @@
                 document.getElementById('modal-victory').classList.add('active');
             } else {
                 document.getElementById('next-lvl').textContent = gameData.level + 1;
-                document.getElementById('next-creatures').textContent = gameData.level;
+                document.getElementById('next-creatures').textContent = getCreatureCount(gameData.level + 1);
                 document.getElementById('modal-levelup').classList.add('active');
             }
         }
@@ -854,13 +866,10 @@
         function getCamera() {
             const cols = Math.ceil(canvas.width / TILE);
             const rows = Math.ceil(canvas.height / TILE);
-            
             let cx = player.x - cols / 2;
             let cy = player.y - rows / 2;
-            
             cx = Math.max(0, Math.min(cx, WORLD_W - cols));
             cy = Math.max(0, Math.min(cy, WORLD_H - rows));
-            
             return { x: cx, y: cy, cols, rows };
         }
 
@@ -877,6 +886,7 @@
             const offX = (cam.x - startX) * TILE;
             const offY = (cam.y - startY) * TILE;
 
+            // Draw tiles
             for (let y = 0; y < cam.rows + 2; y++) {
                 for (let x = 0; x < cam.cols + 2; x++) {
                     const wx = startX + x;
@@ -892,7 +902,6 @@
                     const distFromPlayer = Math.sqrt(
                         Math.pow(wx - player.x, 2) + Math.pow(wy - player.y, 2)
                     );
-                    
                     const lightLevel = Math.max(0, 1 - (distFromPlayer / LIGHT_RADIUS));
 
                     ctx.fillStyle = COLORS[tile];
@@ -905,40 +914,71 @@
                         ctx.fillRect(sx, sy, TILE, 2);
                     }
 
+                    // Mushroom
                     if (tile === T.MUSHROOM && lightLevel > 0.1) {
                         ctx.globalAlpha = lightLevel;
                         ctx.fillStyle = '#cd5c5c';
                         ctx.beginPath();
-                        ctx.ellipse(sx + TILE/2, sy + TILE/3, 9, 7, 0, 0, Math.PI * 2);
+                        ctx.ellipse(sx + TILE / 2, sy + TILE / 3, 9, 7, 0, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.fillStyle = '#8b4513';
-                        ctx.fillRect(sx + TILE/2 - 3, sy + TILE/3, 6, TILE/2);
+                        ctx.fillRect(sx + TILE / 2 - 3, sy + TILE / 3, 6, TILE / 2);
                         ctx.fillStyle = '#ffe4c4';
                         ctx.beginPath();
-                        ctx.arc(sx + TILE/2 - 3, sy + TILE/3 - 2, 2, 0, Math.PI * 2);
-                        ctx.arc(sx + TILE/2 + 4, sy + TILE/3 + 1, 1.5, 0, Math.PI * 2);
+                        ctx.arc(sx + TILE / 2 - 3, sy + TILE / 3 - 2, 2, 0, Math.PI * 2);
+                        ctx.arc(sx + TILE / 2 + 4, sy + TILE / 3 + 1, 1.5, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.globalAlpha = 1;
                     }
 
+                    // Ore sparkle
                     if (tile >= T.GOLD && lightLevel > 0.3 && Math.random() < 0.06) {
                         ctx.fillStyle = `rgba(255,255,255,${lightLevel * 0.8})`;
                         ctx.beginPath();
-                        ctx.arc(sx + Math.random()*TILE, sy + Math.random()*TILE, 1.5, 0, Math.PI*2);
+                        ctx.arc(sx + Math.random() * TILE, sy + Math.random() * TILE, 1.5, 0, Math.PI * 2);
                         ctx.fill();
                     }
 
+                    // Darkness
                     const darkness = Math.max(0, 0.92 - lightLevel * 0.92);
                     ctx.fillStyle = `rgba(0,0,0,${darkness})`;
                     ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
+
+                    // Mining progress
+                    if (mining.active && mining.x === wx && mining.y === wy) {
+                        const progress = mining.progress / mining.required;
+
+                        // Crack effect
+                        ctx.strokeStyle = `rgba(0,0,0,${0.3 + progress * 0.5})`;
+                        ctx.lineWidth = 2;
+                        const cracks = Math.floor(progress * 5) + 1;
+                        for (let i = 0; i < cracks; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(sx + TILE / 2, sy + TILE / 2);
+                            const angle = (i / cracks) * Math.PI * 2 + progress;
+                            const len = 5 + progress * 15;
+                            ctx.lineTo(
+                                sx + TILE / 2 + Math.cos(angle) * len,
+                                sy + TILE / 2 + Math.sin(angle) * len
+                            );
+                            ctx.stroke();
+                        }
+
+                        // Progress bar
+                        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                        ctx.fillRect(sx + 2, sy + TILE - 8, TILE - 4, 6);
+                        ctx.fillStyle = '#ffd700';
+                        ctx.fillRect(sx + 3, sy + TILE - 7, (TILE - 6) * progress, 4);
+                    }
                 }
             }
 
+            // Draw creatures
             creatures.forEach(c => {
                 const sx = (c.x - cam.x) * TILE;
                 const sy = (c.y - cam.y) * TILE;
 
-                if (sx < -TILE*2 || sx > canvas.width + TILE || sy < -TILE*2 || sy > canvas.height + TILE) return;
+                if (sx < -TILE * 2 || sx > canvas.width + TILE || sy < -TILE * 2 || sy > canvas.height + TILE) return;
 
                 const distFromPlayer = Math.sqrt(
                     Math.pow(c.x - player.x, 2) + Math.pow(c.y - player.y, 2)
@@ -958,14 +998,16 @@
                 }
             });
 
+            // Draw player
             const px = (player.x - cam.x) * TILE;
             const py = (player.y - cam.y) * TILE;
             drawPlayer(px, py);
 
+            // Light glow
             const gradient = ctx.createRadialGradient(
-                px + TILE/2 + (player.facingRight ? 15 : -15), py + 8,
+                px + TILE / 2 + (player.facingRight ? 15 : -15), py + 8,
                 0,
-                px + TILE/2 + (player.facingRight ? 15 : -15), py + 8,
+                px + TILE / 2 + (player.facingRight ? 15 : -15), py + 8,
                 TILE * LIGHT_RADIUS
             );
             gradient.addColorStop(0, 'rgba(255,240,200,0.08)');
@@ -975,310 +1017,282 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
+        // Draw creature
         function drawCreature(c, x, y) {
             const s = TILE / 38;
             const bounce = Math.sin(c.animFrame * Math.PI) * 2;
 
             ctx.save();
-            ctx.translate(x + TILE/2, y + TILE/2);
+            ctx.translate(x + TILE / 2, y + TILE / 2);
             if (c.dir < 0) ctx.scale(-1, 1);
-            ctx.translate(-TILE/2, -TILE/2);
+            ctx.translate(-TILE / 2, -TILE / 2);
 
-            switch(c.type) {
+            switch (c.type) {
                 case 'bat':
                     ctx.fillStyle = '#2a1a3a';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 + bounce, 10*s, 8*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 + bounce, 10 * s, 8 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#3d2a4a';
                     const wingY = bounce * 1.5;
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 - 8*s, TILE/2);
-                    ctx.quadraticCurveTo(TILE/2 - 22*s, TILE/2 - 12*s + wingY, TILE/2 - 18*s, TILE/2 + 5*s);
-                    ctx.quadraticCurveTo(TILE/2 - 10*s, TILE/2 + 8*s, TILE/2 - 8*s, TILE/2);
+                    ctx.moveTo(TILE / 2 - 8 * s, TILE / 2);
+                    ctx.quadraticCurveTo(TILE / 2 - 22 * s, TILE / 2 - 12 * s + wingY, TILE / 2 - 18 * s, TILE / 2 + 5 * s);
+                    ctx.quadraticCurveTo(TILE / 2 - 10 * s, TILE / 2 + 8 * s, TILE / 2 - 8 * s, TILE / 2);
                     ctx.fill();
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 + 8*s, TILE/2);
-                    ctx.quadraticCurveTo(TILE/2 + 22*s, TILE/2 - 12*s + wingY, TILE/2 + 18*s, TILE/2 + 5*s);
-                    ctx.quadraticCurveTo(TILE/2 + 10*s, TILE/2 + 8*s, TILE/2 + 8*s, TILE/2);
+                    ctx.moveTo(TILE / 2 + 8 * s, TILE / 2);
+                    ctx.quadraticCurveTo(TILE / 2 + 22 * s, TILE / 2 - 12 * s + wingY, TILE / 2 + 18 * s, TILE / 2 + 5 * s);
+                    ctx.quadraticCurveTo(TILE / 2 + 10 * s, TILE / 2 + 8 * s, TILE / 2 + 8 * s, TILE / 2);
                     ctx.fill();
                     ctx.fillStyle = '#ff3333';
                     ctx.beginPath();
-                    ctx.arc(TILE/2 - 4*s, TILE/2 - 2*s + bounce, 2*s, 0, Math.PI*2);
-                    ctx.arc(TILE/2 + 4*s, TILE/2 - 2*s + bounce, 2*s, 0, Math.PI*2);
-                    ctx.fill();
-                    ctx.fillStyle = '#2a1a3a';
-                    ctx.beginPath();
-                    ctx.moveTo(TILE/2 - 6*s, TILE/2 - 6*s + bounce);
-                    ctx.lineTo(TILE/2 - 10*s, TILE/2 - 16*s + bounce);
-                    ctx.lineTo(TILE/2 - 2*s, TILE/2 - 8*s + bounce);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(TILE/2 + 6*s, TILE/2 - 6*s + bounce);
-                    ctx.lineTo(TILE/2 + 10*s, TILE/2 - 16*s + bounce);
-                    ctx.lineTo(TILE/2 + 2*s, TILE/2 - 8*s + bounce);
+                    ctx.arc(TILE / 2 - 4 * s, TILE / 2 - 2 * s + bounce, 2 * s, 0, Math.PI * 2);
+                    ctx.arc(TILE / 2 + 4 * s, TILE / 2 - 2 * s + bounce, 2 * s, 0, Math.PI * 2);
                     ctx.fill();
                     break;
 
                 case 'spider':
                     ctx.strokeStyle = '#1a0a0a';
-                    ctx.lineWidth = 2*s;
+                    ctx.lineWidth = 2 * s;
                     for (let i = 0; i < 4; i++) {
                         const legBounce = Math.sin(c.animFrame * Math.PI + i) * 3;
                         ctx.beginPath();
-                        ctx.moveTo(TILE/2 - 6*s, TILE/2 + i*3*s - 4*s);
-                        ctx.quadraticCurveTo(TILE/2 - 18*s, TILE/2 + i*3*s - 10*s + legBounce, TILE/2 - 14*s, TILE/2 + 12*s);
+                        ctx.moveTo(TILE / 2 - 6 * s, TILE / 2 + i * 3 * s - 4 * s);
+                        ctx.quadraticCurveTo(TILE / 2 - 18 * s, TILE / 2 + i * 3 * s - 10 * s + legBounce, TILE / 2 - 14 * s, TILE / 2 + 12 * s);
                         ctx.stroke();
                         ctx.beginPath();
-                        ctx.moveTo(TILE/2 + 6*s, TILE/2 + i*3*s - 4*s);
-                        ctx.quadraticCurveTo(TILE/2 + 18*s, TILE/2 + i*3*s - 10*s + legBounce, TILE/2 + 14*s, TILE/2 + 12*s);
+                        ctx.moveTo(TILE / 2 + 6 * s, TILE / 2 + i * 3 * s - 4 * s);
+                        ctx.quadraticCurveTo(TILE / 2 + 18 * s, TILE / 2 + i * 3 * s - 10 * s + legBounce, TILE / 2 + 14 * s, TILE / 2 + 12 * s);
                         ctx.stroke();
                     }
                     ctx.fillStyle = '#2a0a0a';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 + 6*s, 10*s, 8*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 + 6 * s, 10 * s, 8 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#3a1515';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 - 4*s, 7*s, 6*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 - 4 * s, 7 * s, 6 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#ff0000';
                     for (let i = 0; i < 4; i++) {
                         ctx.beginPath();
-                        ctx.arc(TILE/2 - 5*s + i*3*s, TILE/2 - 8*s, 1.5*s, 0, Math.PI*2);
+                        ctx.arc(TILE / 2 - 5 * s + i * 3 * s, TILE / 2 - 8 * s, 1.5 * s, 0, Math.PI * 2);
                         ctx.fill();
                     }
                     break;
 
                 case 'zombie':
                     ctx.fillStyle = '#3a4a3a';
-                    ctx.fillRect(TILE/2 - 8*s, TILE/2 + 8*s, 6*s, 12*s);
-                    ctx.fillRect(TILE/2 + 2*s, TILE/2 + 8*s + bounce, 6*s, 12*s);
+                    ctx.fillRect(TILE / 2 - 8 * s, TILE / 2 + 8 * s, 6 * s, 12 * s);
+                    ctx.fillRect(TILE / 2 + 2 * s, TILE / 2 + 8 * s + bounce, 6 * s, 12 * s);
                     ctx.fillStyle = '#4a5a4a';
-                    ctx.fillRect(TILE/2 - 10*s, TILE/2 - 8*s, 20*s, 18*s);
-                    ctx.fillStyle = '#6a5a5a';
-                    ctx.fillRect(TILE/2 - 8*s, TILE/2 - 6*s, 16*s, 10*s);
+                    ctx.fillRect(TILE / 2 - 10 * s, TILE / 2 - 8 * s, 20 * s, 18 * s);
                     ctx.fillStyle = '#5a6a5a';
                     ctx.save();
-                    ctx.translate(TILE/2 - 10*s, TILE/2 - 4*s);
+                    ctx.translate(TILE / 2 - 10 * s, TILE / 2 - 4 * s);
                     ctx.rotate(0.5 + Math.sin(c.animFrame * Math.PI) * 0.2);
-                    ctx.fillRect(-4*s, 0, 5*s, 14*s);
+                    ctx.fillRect(-4 * s, 0, 5 * s, 14 * s);
                     ctx.restore();
-                    ctx.fillRect(TILE/2 + 10*s, TILE/2 - 4*s, 5*s, 12*s);
+                    ctx.fillRect(TILE / 2 + 10 * s, TILE / 2 - 4 * s, 5 * s, 12 * s);
                     ctx.fillStyle = '#5a7a5a';
-                    ctx.fillRect(TILE/2 - 7*s, TILE/2 - 20*s, 14*s, 14*s);
+                    ctx.fillRect(TILE / 2 - 7 * s, TILE / 2 - 20 * s, 14 * s, 14 * s);
                     ctx.fillStyle = '#ffff00';
-                    ctx.fillRect(TILE/2 - 5*s, TILE/2 - 16*s, 3*s, 4*s);
-                    ctx.fillRect(TILE/2 + 2*s, TILE/2 - 16*s, 3*s, 4*s);
-                    ctx.fillStyle = '#2a2a2a';
-                    ctx.fillRect(TILE/2 - 4*s, TILE/2 - 10*s, 8*s, 3*s);
+                    ctx.fillRect(TILE / 2 - 5 * s, TILE / 2 - 16 * s, 3 * s, 4 * s);
+                    ctx.fillRect(TILE / 2 + 2 * s, TILE / 2 - 16 * s, 3 * s, 4 * s);
                     break;
 
                 case 'skeleton':
                     ctx.fillStyle = '#d4d4c4';
-                    ctx.fillRect(TILE/2 - 6*s, TILE/2 + 6*s, 3*s, 14*s);
-                    ctx.fillRect(TILE/2 + 3*s, TILE/2 + 6*s + bounce, 3*s, 14*s);
+                    ctx.fillRect(TILE / 2 - 6 * s, TILE / 2 + 6 * s, 3 * s, 14 * s);
+                    ctx.fillRect(TILE / 2 + 3 * s, TILE / 2 + 6 * s + bounce, 3 * s, 14 * s);
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 + 6*s, 8*s, 4*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 + 6 * s, 8 * s, 4 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillRect(TILE/2 - 2*s, TILE/2 - 12*s, 4*s, 18*s);
-                    ctx.strokeStyle = '#d4d4c4';
-                    ctx.lineWidth = 2*s;
-                    for (let i = 0; i < 4; i++) {
-                        ctx.beginPath();
-                        ctx.ellipse(TILE/2, TILE/2 - 8*s + i*4*s, 8*s, 2*s, 0, 0, Math.PI*2);
-                        ctx.stroke();
-                    }
-                    ctx.fillStyle = '#d4d4c4';
-                    ctx.fillRect(TILE/2 - 12*s, TILE/2 - 10*s, 3*s, 12*s);
-                    ctx.fillRect(TILE/2 + 9*s, TILE/2 - 10*s, 3*s, 12*s);
+                    ctx.fillRect(TILE / 2 - 2 * s, TILE / 2 - 12 * s, 4 * s, 18 * s);
+                    ctx.fillRect(TILE / 2 - 12 * s, TILE / 2 - 10 * s, 3 * s, 12 * s);
+                    ctx.fillRect(TILE / 2 + 9 * s, TILE / 2 - 10 * s, 3 * s, 12 * s);
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 - 18*s, 8*s, 9*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 - 18 * s, 8 * s, 9 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#1a1a1a';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2 - 3*s, TILE/2 - 18*s, 3*s, 4*s, 0, 0, Math.PI*2);
-                    ctx.ellipse(TILE/2 + 3*s, TILE/2 - 18*s, 3*s, 4*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2 - 3 * s, TILE / 2 - 18 * s, 3 * s, 4 * s, 0, 0, Math.PI * 2);
+                    ctx.ellipse(TILE / 2 + 3 * s, TILE / 2 - 18 * s, 3 * s, 4 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#ff3333';
                     ctx.beginPath();
-                    ctx.arc(TILE/2 - 3*s, TILE/2 - 18*s, 1.5*s, 0, Math.PI*2);
-                    ctx.arc(TILE/2 + 3*s, TILE/2 - 18*s, 1.5*s, 0, Math.PI*2);
+                    ctx.arc(TILE / 2 - 3 * s, TILE / 2 - 18 * s, 1.5 * s, 0, Math.PI * 2);
+                    ctx.arc(TILE / 2 + 3 * s, TILE / 2 - 18 * s, 1.5 * s, 0, Math.PI * 2);
                     ctx.fill();
                     break;
 
                 case 'demon':
                     ctx.fillStyle = '#5a1a1a';
-                    ctx.fillRect(TILE/2 - 8*s, TILE/2 + 6*s, 6*s, 14*s);
-                    ctx.fillRect(TILE/2 + 2*s, TILE/2 + 6*s + bounce, 6*s, 14*s);
-                    ctx.fillStyle = '#2a0a0a';
-                    ctx.fillRect(TILE/2 - 9*s, TILE/2 + 18*s, 8*s, 4*s);
-                    ctx.fillRect(TILE/2 + 1*s, TILE/2 + 18*s + bounce, 8*s, 4*s);
+                    ctx.fillRect(TILE / 2 - 8 * s, TILE / 2 + 6 * s, 6 * s, 14 * s);
+                    ctx.fillRect(TILE / 2 + 2 * s, TILE / 2 + 6 * s + bounce, 6 * s, 14 * s);
                     ctx.fillStyle = '#7a2a2a';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2, 12*s, 10*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2, 12 * s, 10 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#6a2020';
-                    ctx.fillRect(TILE/2 - 16*s, TILE/2 - 8*s, 6*s, 14*s);
-                    ctx.fillRect(TILE/2 + 10*s, TILE/2 - 8*s, 6*s, 14*s);
+                    ctx.fillRect(TILE / 2 - 16 * s, TILE / 2 - 8 * s, 6 * s, 14 * s);
+                    ctx.fillRect(TILE / 2 + 10 * s, TILE / 2 - 8 * s, 6 * s, 14 * s);
                     ctx.fillStyle = '#8a3030';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 - 14*s, 9*s, 8*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 - 14 * s, 9 * s, 8 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#3a1a1a';
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 - 6*s, TILE/2 - 18*s);
-                    ctx.quadraticCurveTo(TILE/2 - 14*s, TILE/2 - 30*s, TILE/2 - 8*s, TILE/2 - 28*s);
-                    ctx.lineTo(TILE/2 - 4*s, TILE/2 - 16*s);
+                    ctx.moveTo(TILE / 2 - 6 * s, TILE / 2 - 18 * s);
+                    ctx.quadraticCurveTo(TILE / 2 - 14 * s, TILE / 2 - 30 * s, TILE / 2 - 8 * s, TILE / 2 - 28 * s);
+                    ctx.lineTo(TILE / 2 - 4 * s, TILE / 2 - 16 * s);
                     ctx.fill();
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 + 6*s, TILE/2 - 18*s);
-                    ctx.quadraticCurveTo(TILE/2 + 14*s, TILE/2 - 30*s, TILE/2 + 8*s, TILE/2 - 28*s);
-                    ctx.lineTo(TILE/2 + 4*s, TILE/2 - 16*s);
+                    ctx.moveTo(TILE / 2 + 6 * s, TILE / 2 - 18 * s);
+                    ctx.quadraticCurveTo(TILE / 2 + 14 * s, TILE / 2 - 30 * s, TILE / 2 + 8 * s, TILE / 2 - 28 * s);
+                    ctx.lineTo(TILE / 2 + 4 * s, TILE / 2 - 16 * s);
                     ctx.fill();
                     ctx.fillStyle = '#ffcc00';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2 - 4*s, TILE/2 - 14*s, 3*s, 2*s, 0, 0, Math.PI*2);
-                    ctx.ellipse(TILE/2 + 4*s, TILE/2 - 14*s, 3*s, 2*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2 - 4 * s, TILE / 2 - 14 * s, 3 * s, 2 * s, 0, 0, Math.PI * 2);
+                    ctx.ellipse(TILE / 2 + 4 * s, TILE / 2 - 14 * s, 3 * s, 2 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     break;
 
                 case 'dragon':
                     ctx.fillStyle = '#1a4a1a';
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 - 8*s, TILE/2 + 4*s);
-                    ctx.quadraticCurveTo(TILE/2 - 25*s, TILE/2 + 15*s, TILE/2 - 20*s, TILE/2 + 5*s);
-                    ctx.quadraticCurveTo(TILE/2 - 18*s, TILE/2, TILE/2 - 8*s, TILE/2);
+                    ctx.moveTo(TILE / 2 - 8 * s, TILE / 2 + 4 * s);
+                    ctx.quadraticCurveTo(TILE / 2 - 25 * s, TILE / 2 + 15 * s, TILE / 2 - 20 * s, TILE / 2 + 5 * s);
+                    ctx.quadraticCurveTo(TILE / 2 - 18 * s, TILE / 2, TILE / 2 - 8 * s, TILE / 2);
                     ctx.fill();
                     ctx.fillStyle = '#2a5a2a';
-                    ctx.fillRect(TILE/2 - 6*s, TILE/2 + 8*s, 6*s, 12*s);
-                    ctx.fillRect(TILE/2 + 2*s, TILE/2 + 8*s + bounce, 6*s, 12*s);
+                    ctx.fillRect(TILE / 2 - 6 * s, TILE / 2 + 8 * s, 6 * s, 12 * s);
+                    ctx.fillRect(TILE / 2 + 2 * s, TILE / 2 + 8 * s + bounce, 6 * s, 12 * s);
                     ctx.fillStyle = '#3a7a3a';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 + 2*s, 14*s, 10*s, 0, 0, Math.PI*2);
-                    ctx.fill();
-                    ctx.fillStyle = '#5a9a5a';
-                    ctx.beginPath();
-                    ctx.ellipse(TILE/2, TILE/2 + 4*s, 8*s, 6*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2, TILE / 2 + 2 * s, 14 * s, 10 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#2a6a2a';
                     const wingFlap = Math.sin(c.animFrame * Math.PI) * 8;
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 - 4*s, TILE/2 - 4*s);
-                    ctx.quadraticCurveTo(TILE/2 - 30*s, TILE/2 - 20*s + wingFlap, TILE/2 - 20*s, TILE/2 + 5*s);
-                    ctx.quadraticCurveTo(TILE/2 - 10*s, TILE/2, TILE/2 - 4*s, TILE/2 - 4*s);
+                    ctx.moveTo(TILE / 2 - 4 * s, TILE / 2 - 4 * s);
+                    ctx.quadraticCurveTo(TILE / 2 - 30 * s, TILE / 2 - 20 * s + wingFlap, TILE / 2 - 20 * s, TILE / 2 + 5 * s);
+                    ctx.quadraticCurveTo(TILE / 2 - 10 * s, TILE / 2, TILE / 2 - 4 * s, TILE / 2 - 4 * s);
                     ctx.fill();
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 + 4*s, TILE/2 - 4*s);
-                    ctx.quadraticCurveTo(TILE/2 + 30*s, TILE/2 - 20*s + wingFlap, TILE/2 + 20*s, TILE/2 + 5*s);
-                    ctx.quadraticCurveTo(TILE/2 + 10*s, TILE/2, TILE/2 + 4*s, TILE/2 - 4*s);
+                    ctx.moveTo(TILE / 2 + 4 * s, TILE / 2 - 4 * s);
+                    ctx.quadraticCurveTo(TILE / 2 + 30 * s, TILE / 2 - 20 * s + wingFlap, TILE / 2 + 20 * s, TILE / 2 + 5 * s);
+                    ctx.quadraticCurveTo(TILE / 2 + 10 * s, TILE / 2, TILE / 2 + 4 * s, TILE / 2 - 4 * s);
                     ctx.fill();
                     ctx.fillStyle = '#3a7a3a';
                     ctx.beginPath();
-                    ctx.moveTo(TILE/2 + 8*s, TILE/2 - 4*s);
-                    ctx.quadraticCurveTo(TILE/2 + 15*s, TILE/2 - 15*s, TILE/2 + 10*s, TILE/2 - 20*s);
-                    ctx.quadraticCurveTo(TILE/2 + 5*s, TILE/2 - 15*s, TILE/2 + 4*s, TILE/2 - 4*s);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.ellipse(TILE/2 + 12*s, TILE/2 - 22*s, 8*s, 6*s, 0.3, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2 + 12 * s, TILE / 2 - 22 * s, 8 * s, 6 * s, 0.3, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#ff6600';
                     ctx.beginPath();
-                    ctx.ellipse(TILE/2 + 14*s, TILE/2 - 24*s, 2*s, 3*s, 0, 0, Math.PI*2);
+                    ctx.ellipse(TILE / 2 + 14 * s, TILE / 2 - 24 * s, 2 * s, 3 * s, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    if (Math.random() < 0.3) {
-                        ctx.fillStyle = '#ff4400';
-                        ctx.beginPath();
-                        ctx.ellipse(TILE/2 + 20*s, TILE/2 - 20*s, 3*s, 2*s, 0, 0, Math.PI*2);
-                        ctx.fill();
-                    }
-                    ctx.fillStyle = '#1a3a1a';
-                    for (let i = 0; i < 5; i++) {
-                        ctx.beginPath();
-                        ctx.moveTo(TILE/2 - 8*s + i*4*s, TILE/2 - 6*s);
-                        ctx.lineTo(TILE/2 - 6*s + i*4*s, TILE/2 - 14*s);
-                        ctx.lineTo(TILE/2 - 4*s + i*4*s, TILE/2 - 6*s);
-                        ctx.fill();
-                    }
                     break;
             }
 
             ctx.restore();
         }
 
+        // Draw player
         function drawPlayer(x, y) {
             const s = TILE / 38;
 
             ctx.save();
-            ctx.translate(x + TILE/2, y + TILE/2);
+            ctx.translate(x + TILE / 2, y + TILE / 2);
             if (!player.facingRight) ctx.scale(-1, 1);
-            ctx.translate(-TILE/2, -TILE/2);
+            ctx.translate(-TILE / 2, -TILE / 2);
 
+            // Shadow
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.beginPath();
-            ctx.ellipse(TILE/2, TILE - 1, 9*s, 3*s, 0, 0, Math.PI*2);
+            ctx.ellipse(TILE / 2, TILE - 1, 9 * s, 3 * s, 0, 0, Math.PI * 2);
             ctx.fill();
 
+            // Legs
             ctx.fillStyle = '#1a2530';
-            ctx.fillRect(10*s, 24*s, 5*s, 12*s);
-            ctx.fillRect(21*s, 24*s, 5*s, 12*s);
+            ctx.fillRect(10 * s, 24 * s, 5 * s, 12 * s);
+            ctx.fillRect(21 * s, 24 * s, 5 * s, 12 * s);
 
+            // Boots
             ctx.fillStyle = '#3d2817';
-            ctx.fillRect(8*s, 33*s, 8*s, 5*s);
-            ctx.fillRect(20*s, 33*s, 8*s, 5*s);
+            ctx.fillRect(8 * s, 33 * s, 8 * s, 5 * s);
+            ctx.fillRect(20 * s, 33 * s, 8 * s, 5 * s);
 
+            // Body
             ctx.fillStyle = '#c65d1a';
-            ctx.fillRect(8*s, 14*s, 20*s, 12*s);
+            ctx.fillRect(8 * s, 14 * s, 20 * s, 12 * s);
 
+            // Belt
             ctx.fillStyle = '#2a1a0a';
-            ctx.fillRect(8*s, 24*s, 20*s, 3*s);
+            ctx.fillRect(8 * s, 24 * s, 20 * s, 3 * s);
             ctx.fillStyle = '#b8860b';
-            ctx.fillRect(16*s, 23*s, 4*s, 5*s);
+            ctx.fillRect(16 * s, 23 * s, 4 * s, 5 * s);
 
+            // Arms
             ctx.fillStyle = '#a04d15';
-            ctx.fillRect(3*s, 15*s, 5*s, 9*s);
-            ctx.fillRect(28*s, 15*s, 5*s, 9*s);
+            ctx.fillRect(3 * s, 15 * s, 5 * s, 9 * s);
+            ctx.fillRect(28 * s, 15 * s, 5 * s, 9 * s);
 
+            // Hands
             ctx.fillStyle = '#deb887';
-            ctx.fillRect(3*s, 23*s, 5*s, 4*s);
+            ctx.fillRect(3 * s, 23 * s, 5 * s, 4 * s);
 
+            // Pickaxe with mining animation
+            const pickAngle = mining.active ? Math.sin(Date.now() / 80) * 0.4 : 0;
+            ctx.save();
+            ctx.translate(30 * s, 20 * s);
+            ctx.rotate(pickAngle);
             ctx.fillStyle = '#5d4037';
-            ctx.fillRect(30*s, 18*s, 3*s, 14*s);
+            ctx.fillRect(0, -2 * s, 3 * s, 14 * s);
             ctx.fillStyle = '#606060';
             ctx.beginPath();
-            ctx.moveTo(28*s, 16*s);
-            ctx.lineTo(40*s, 10*s);
-            ctx.lineTo(40*s, 15*s);
-            ctx.lineTo(33*s, 19*s);
+            ctx.moveTo(-2 * s, -4 * s);
+            ctx.lineTo(10 * s, -10 * s);
+            ctx.lineTo(10 * s, -5 * s);
+            ctx.lineTo(3 * s, -1 * s);
             ctx.closePath();
             ctx.fill();
+            ctx.restore();
 
+            // Head
             ctx.fillStyle = '#deb887';
-            ctx.fillRect(11*s, 3*s, 14*s, 12*s);
+            ctx.fillRect(11 * s, 3 * s, 14 * s, 12 * s);
 
+            // Hair
             ctx.fillStyle = '#3d2314';
-            ctx.fillRect(11*s, 2*s, 14*s, 5*s);
-            ctx.fillRect(10*s, 4*s, 3*s, 5*s);
+            ctx.fillRect(11 * s, 2 * s, 14 * s, 5 * s);
+            ctx.fillRect(10 * s, 4 * s, 3 * s, 5 * s);
 
+            // Helmet
             ctx.fillStyle = '#daa520';
-            ctx.fillRect(9*s, 0*s, 18*s, 5*s);
-            ctx.fillRect(11*s, -1*s, 14*s, 3*s);
+            ctx.fillRect(9 * s, 0 * s, 18 * s, 5 * s);
+            ctx.fillRect(11 * s, -1 * s, 14 * s, 3 * s);
 
+            // Helmet lamp
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(18*s, 3*s, 3*s, 0, Math.PI*2);
+            ctx.arc(18 * s, 3 * s, 3 * s, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = '#ffff88';
             ctx.beginPath();
-            ctx.arc(18*s, 3*s, 2*s, 0, Math.PI*2);
+            ctx.arc(18 * s, 3 * s, 2 * s, 0, Math.PI * 2);
             ctx.fill();
 
+            // Eyes
             ctx.fillStyle = '#222';
-            ctx.fillRect(13*s, 8*s, 2*s, 2*s);
-            ctx.fillRect(21*s, 8*s, 2*s, 2*s);
+            ctx.fillRect(13 * s, 8 * s, 2 * s, 2 * s);
+            ctx.fillRect(21 * s, 8 * s, 2 * s, 2 * s);
 
+            // Mouth
             ctx.fillStyle = '#8b4513';
-            ctx.fillRect(16*s, 12*s, 4*s, 1*s);
+            ctx.fillRect(16 * s, 12 * s, 4 * s, 1 * s);
 
             ctx.restore();
         }
@@ -1296,11 +1310,11 @@
 
             document.getElementById('level-num').textContent = gameData.level;
             document.getElementById('depth-val').textContent = gameData.maxDepth;
+            document.getElementById('monsters-val').textContent = creatures.length;
 
             const req = getRequirements(gameData.level);
             let totalNeed = 0, totalHave = 0;
             let html = '';
-
             const icons = { stone: '⬜', coal: '⬛', iron: '🟤', gold: '🟡', diamond: '💎', ruby: '❤️' };
 
             for (const [mat, amt] of Object.entries(req)) {
@@ -1322,7 +1336,6 @@
             document.getElementById('inventory-display').innerHTML = invHtml;
 
             document.getElementById('kills-val').textContent = gameData.kills;
-            
             const totalItems = Object.values(totalMined).reduce((a, b) => a + b, 0);
             document.getElementById('total-mined').textContent = totalItems;
         }
@@ -1339,16 +1352,15 @@
                 maxHealth: 100,
                 hunger: 100,
                 oxygen: 100,
-                facingRight: true,
-                lastMove: 0
+                facingRight: true
             };
 
-            // Reset entrambi gli inventari
             resetLevelInventory();
             totalMined = { stone: 0, coal: 0, iron: 0, gold: 0, diamond: 0, ruby: 0 };
-            
             gameData = { level: 1, kills: 0, maxDepth: 0 };
             creatures = [];
+            mining = { active: false, x: 0, y: 0, progress: 0, required: 0, tile: 0 };
+            lastMoveTime = 0;
 
             generateWorld();
             gameRunning = true;
@@ -1358,8 +1370,8 @@
         function goNextLevel() {
             document.getElementById('modal-levelup').classList.remove('active');
 
-            // IMPORTANTE: Reset dell'inventario del livello!
             resetLevelInventory();
+            mining = { active: false, x: 0, y: 0, progress: 0, required: 0, tile: 0 };
 
             player.y += 20;
             carveRoom(player.x, player.y, 6, 5);
@@ -1394,7 +1406,7 @@
         // Input
         document.addEventListener('keydown', e => {
             const k = e.key.toLowerCase();
-            if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)) {
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
                 e.preventDefault();
                 keys[k] = true;
             }
@@ -1405,24 +1417,17 @@
         });
 
         function handleInput() {
-            if (keys['arrowup'] || keys['w']) movePlayer(0, -1);
-            else if (keys['arrowdown'] || keys['s']) movePlayer(0, 1);
-            else if (keys['arrowleft'] || keys['a']) movePlayer(-1, 0);
-            else if (keys['arrowright'] || keys['d']) movePlayer(1, 0);
+            // Solo un movimento alla volta, con priorità
+            if (keys['arrowup'] || keys['w']) {
+                tryMove(0, -1);
+            } else if (keys['arrowdown'] || keys['s']) {
+                tryMove(0, 1);
+            } else if (keys['arrowleft'] || keys['a']) {
+                tryMove(-1, 0);
+            } else if (keys['arrowright'] || keys['d']) {
+                tryMove(1, 0);
+            }
         }
-
-        // Mobile
-        ['up','down','left','right'].forEach(dir => {
-            const btn = document.getElementById('btn-' + dir);
-            const move = () => {
-                if (dir === 'up') movePlayer(0, -1);
-                if (dir === 'down') movePlayer(0, 1);
-                if (dir === 'left') movePlayer(-1, 0);
-                if (dir === 'right') movePlayer(1, 0);
-            };
-            btn.addEventListener('touchstart', e => { e.preventDefault(); move(); });
-            btn.addEventListener('mousedown', move);
-        });
 
         // Game loop
         let lastTime = 0;
@@ -1434,6 +1439,7 @@
 
             if (gameRunning) {
                 handleInput();
+                updateMining(dt);
                 updateCreatures();
 
                 survivalTick += dt;
