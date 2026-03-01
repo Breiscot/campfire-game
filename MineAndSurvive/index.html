@@ -26,7 +26,6 @@
             left: 0;
         }
 
-        /* UI Top Center - Level Info */
         .ui-top {
             position: fixed;
             top: 15px;
@@ -96,7 +95,6 @@
             color: #32cd32;
         }
 
-        /* UI Bottom Center - Vital Stats */
         .ui-bottom {
             position: fixed;
             bottom: 20px;
@@ -164,7 +162,6 @@
             font-weight: bold;
         }
 
-        /* Stats corner */
         .stats-corner {
             position: fixed;
             top: 15px;
@@ -266,28 +263,23 @@
                 gap: 10px;
                 padding: 12px 20px;
             }
-            
             .vital-stat {
                 flex-direction: row;
                 gap: 10px;
                 min-width: auto;
             }
-            
             .vital-icon {
                 font-size: 1.4em;
                 margin-bottom: 0;
             }
-            
             .vital-bar-bg {
                 width: 150px;
                 height: 14px;
             }
-            
             .vital-text {
-                min-width: 50px;
+                min-width: 60px;
                 text-align: right;
             }
-            
             .materials-grid {
                 max-width: 280px;
             }
@@ -297,14 +289,12 @@
 <body>
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Stats Corner -->
     <div class="stats-corner" id="game-ui" style="display: none;">
         <div>👾 Uccisioni: <span id="kills-val">0</span></div>
         <div>📏 Profondità: <span id="depth-val">0</span>m</div>
         <div>👹 Mostri: <span id="monsters-val">0</span></div>
     </div>
 
-    <!-- Top Center - Level Info -->
     <div class="ui-top" id="ui-top" style="display: none;">
         <div class="ui-panel">
             <div class="level-title">⛏️ LIVELLO <span id="level-num">1</span>/10</div>
@@ -318,7 +308,6 @@
         </div>
     </div>
 
-    <!-- Bottom Center - Vital Stats -->
     <div class="ui-bottom" id="ui-bottom" style="display: none;">
         <div class="vitals-container">
             <div class="vital-stat">
@@ -326,28 +315,27 @@
                 <div class="vital-bar-bg">
                     <div class="vital-bar-fill health" id="health-bar"></div>
                 </div>
-                <div class="vital-text" id="health-val">100</div>
+                <div class="vital-text" id="health-val">100/100</div>
             </div>
             <div class="vital-stat">
                 <div class="vital-icon">🍖</div>
                 <div class="vital-bar-bg">
                     <div class="vital-bar-fill hunger" id="hunger-bar"></div>
                 </div>
-                <div class="vital-text" id="hunger-val">100</div>
+                <div class="vital-text" id="hunger-val">100/100</div>
             </div>
             <div class="vital-stat">
                 <div class="vital-icon">💨</div>
                 <div class="vital-bar-bg">
                     <div class="vital-bar-fill oxygen" id="oxygen-bar"></div>
                 </div>
-                <div class="vital-text" id="oxygen-val">100</div>
+                <div class="vital-text" id="oxygen-val">100/100</div>
             </div>
         </div>
     </div>
 
     <div class="controls-hint">WASD o Frecce per muoversi | Tieni premuto per scavare</div>
 
-    <!-- Start -->
     <div class="modal active" id="modal-start">
         <div class="modal-box">
             <h2>⛏️ MineAndSurvive</h2>
@@ -357,12 +345,10 @@
             <p>Esplora le gallerie, raccogli materiali.</p>
             <p>Sopravvivi fino al <strong style="color:#ffd700;">Livello 10</strong> per vincere!</p>
             <p class="highlight" style="margin-top:12px;">⚠️ Creature ostili dal Livello 2!</p>
-            <p style="color:#888; font-size:0.85em; margin-top:10px;">⛏️ Tieni premuto per scavare i minerali!</p>
             <button class="modal-btn" onclick="startGame()">▶️ INIZIA</button>
         </div>
     </div>
 
-    <!-- Level Up -->
     <div class="modal" id="modal-levelup">
         <div class="modal-box">
             <h2>✅ LIVELLO COMPLETATO!</h2>
@@ -373,7 +359,6 @@
         </div>
     </div>
 
-    <!-- Victory -->
     <div class="modal" id="modal-victory">
         <div class="modal-box">
             <h2>🏆 VITTORIA!</h2>
@@ -385,7 +370,6 @@
         </div>
     </div>
 
-    <!-- Game Over -->
     <div class="modal" id="modal-gameover">
         <div class="modal-box">
             <h2>💀 SEI MORTO</h2>
@@ -407,7 +391,6 @@
         resize();
         window.addEventListener('resize', resize);
 
-        // Constants
         const TILE = 38;
         const WORLD_W = 80;
         const WORLD_H = 500;
@@ -465,7 +448,6 @@
             { name: 'Drago', hp: 130, dmg: 28, spd: 0.8, type: 'dragon' }
         ];
 
-        // Game state
         let world = [];
         let player = {};
         let creatures = [];
@@ -485,6 +467,24 @@
 
         let lastMoveTime = 0;
 
+        // FUNZIONI HELPER PER MODIFICARE STATS IN MODO SICURO
+        function addHealth(amount) {
+            player.health = Math.min(player.maxHealth, Math.max(0, player.health + amount));
+        }
+
+        function setHealth(value) {
+            player.health = Math.min(player.maxHealth, Math.max(0, value));
+        }
+
+        function addHunger(amount) {
+            player.hunger = Math.min(100, Math.max(0, player.hunger + amount));
+        }
+
+        function addOxygen(amount) {
+            player.oxygen = Math.min(100, Math.max(0, player.oxygen + amount));
+        }
+
+        // FUNZIONE REQUIREMENTS CON RUBINI CORRETTI
         function getRequirements(lvl) {
             const req = {};
             req.stone = 6 + lvl * 2;
@@ -492,7 +492,17 @@
             if (lvl >= 2) req.iron = 2 + Math.floor(lvl * 0.8);
             if (lvl >= 3) req.gold = 1 + Math.floor(lvl * 0.5);
             if (lvl >= 5) req.diamond = Math.floor(lvl * 0.3);
-            if (lvl >= 7) req.ruby = Math.floor((lvl - 6) * 0.5);
+            
+            // RUBINI CORRETTI:
+            // Livello 7 = 1 rubino
+            // Livello 8 = 3 rubini
+            // Livello 9 = 4 rubini
+            // Livello 10 = 5 rubini
+            if (lvl === 7) req.ruby = 1;
+            else if (lvl === 8) req.ruby = 3;
+            else if (lvl === 9) req.ruby = 4;
+            else if (lvl >= 10) req.ruby = 5;
+            
             return req;
         }
 
@@ -753,7 +763,7 @@
 
             if (data) {
                 if (data.food) {
-                    player.hunger = Math.min(100, player.hunger + data.food);
+                    addHunger(data.food);
                 }
                 if (data.inv) {
                     inventory[data.inv] = (inventory[data.inv] || 0) + 1;
@@ -779,7 +789,7 @@
             player.y = ny;
 
             if (ny > gameData.maxDepth) gameData.maxDepth = ny;
-            player.oxygen = Math.max(0, player.oxygen - 0.15);
+            addOxygen(-0.15);
 
             updateUI();
         }
@@ -789,15 +799,74 @@
             c.hp -= dmg;
 
             if (c.hp <= 0) {
+                // Mostro ucciso
                 creatures = creatures.filter(cr => cr !== c);
                 gameData.kills++;
-                player.health = Math.min(player.maxHealth, player.health + 10);
-                player.hunger = Math.min(100, player.hunger + 12);
+                addHealth(10);
+                addHunger(12);
             } else {
-                player.health -= c.dmg;
-                if (player.health <= 0) doGameOver();
+                // Il mostro contrattacca
+                addHealth(-c.dmg);
             }
+
+            if (player.health <= 0) {
+                doGameOver();
+            }
+
             updateUI();
+        }
+
+        // simple breadth-first search on the grid of air tiles
+        function findPath(sx, sy, tx, ty, maxNodes = 1000) {
+            const key = (x, y) => x + ',' + y;
+            const q = [{x: sx, y: sy}];
+            const visited = new Set([key(sx, sy)]);
+            const parent = {};
+
+            while (q.length && visited.size < maxNodes) {
+                const {x, y} = q.shift();
+                if (x === tx && y === ty) {
+                    const path = [];
+                    let cx = x, cy = y;
+                    while (!(cx === sx && cy === sy)) {
+                        path.unshift({x: cx, y: cy});
+                        const p = parent[key(cx, cy)];
+                        cx = p.x;
+                        cy = p.y;
+                    }
+                    return path;
+                }
+                const dirs = [
+                    {dx: 1, dy: 0},
+                    {dx: -1, dy: 0},
+                    {dx: 0, dy: 1},
+                    {dx: 0, dy: -1}
+                ];
+                for (const d of dirs) {
+                    const nx = x + d.dx;
+                    const ny = y + d.dy;
+                    if (nx < 0 || nx >= WORLD_W || ny < 0 || ny >= WORLD_H) continue;
+                    const k2 = key(nx, ny);
+                    if (visited.has(k2)) continue;
+                    if (world[ny] && world[ny][nx] === T.AIR) {
+                        visited.add(k2);
+                        parent[k2] = {x, y};
+                        q.push({x: nx, y: ny});
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getNextStepTowards(c, tx, ty) {
+            const startX = Math.round(c.x);
+            const startY = Math.round(c.y);
+            const path = findPath(startX, startY, tx, ty, 500);
+            if (path && path.length > 0) {
+                const step = path[0];
+                return {mx: step.x - startX, my: step.y - startY};
+            }
+            return null;
         }
 
         function updateCreatures() {
@@ -816,11 +885,35 @@
 
                 let mx = 0, my = 0;
 
-                if (dist < 14) {
-                    if (Math.abs(dx) >= Math.abs(dy)) mx = Math.sign(dx);
-                    else my = Math.sign(dy);
+                // low-health creatures try to run away
+                if (c.hp < c.maxHp * 0.3 && dist < 10) {
+                    let best = {mx: 0, my: 0, bestDist: dist};
+                    const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+                    for (const d of dirs) {
+                        const nx = c.x + d.dx;
+                        const ny = c.y + d.dy;
+                        if (nx < 0 || nx >= WORLD_W || ny < 0 || ny >= WORLD_H) continue;
+                        if (!(world[ny] && world[ny][nx] === T.AIR)) continue;
+                        const ndx = player.x - nx;
+                        const ndy = player.y - ny;
+                        const ndist = Math.sqrt(ndx*ndx + ndy*ndy);
+                        if (ndist > best.bestDist) {
+                            best = {mx: d.dx, my: d.dy, bestDist: ndist};
+                        }
+                    }
+                    mx = best.mx;
+                    my = best.my;
+                } else if (dist < 20) {
+                    const step = getNextStepTowards(c, player.x, player.y);
+                    if (step) {
+                        mx = step.mx;
+                        my = step.my;
+                    } else {
+                        if (Math.abs(dx) >= Math.abs(dy)) mx = Math.sign(dx);
+                        else my = Math.sign(dy);
+                    }
                 } else {
-                    if (Math.random() < 0.35) {
+                    if (Math.random() < 0.15) {
                         mx = c.dir;
                         if (Math.random() < 0.08) c.dir *= -1;
                     }
@@ -832,10 +925,14 @@
                 if (nx >= 0 && nx < WORLD_W && ny >= 0 && ny < WORLD_H && world[ny]) {
                     if (world[ny][nx] === T.AIR) {
                         if (Math.round(nx) === player.x && Math.round(ny) === player.y) {
-                            player.health -= c.dmg;
-                            if (player.health <= 0) doGameOver();
+                            addHealth(-c.dmg);
+                            
+                            if (player.health <= 0) {
+                                doGameOver();
+                            }
                             updateUI();
                         } else {
+                            if (mx !== 0) c.dir = mx;
                             c.x = nx;
                             c.y = ny;
                         }
@@ -847,23 +944,32 @@
         function updateSurvival() {
             if (!gameRunning) return;
 
-            player.hunger = Math.max(0, player.hunger - 0.025);
+            addHunger(-0.025);
 
             const airCount = countAir();
             if (airCount >= 6) {
-                player.oxygen = Math.min(100, player.oxygen + 0.35);
+                addOxygen(0.35);
             } else if (airCount <= 2) {
-                player.oxygen = Math.max(0, player.oxygen - 0.12);
+                addOxygen(-0.12);
             }
 
-            if (player.hunger <= 0) player.health -= 0.06;
-            if (player.oxygen <= 0) player.health -= 0.12;
+            // Danno da fame/ossigeno
+            if (player.hunger <= 0) {
+                addHealth(-0.06);
+            }
+            if (player.oxygen <= 0) {
+                addHealth(-0.12);
+            }
 
+            // Rigenerazione naturale
             if (player.hunger > 75 && player.oxygen > 65) {
-                player.health = Math.min(player.maxHealth, player.health + 0.025);
+                addHealth(0.025);
             }
 
-            if (player.health <= 0) doGameOver();
+            if (player.health <= 0) {
+                doGameOver();
+            }
+
             updateUI();
         }
 
@@ -1306,40 +1412,43 @@
         }
 
         function updateUI() {
-            // Vital bars
-            document.getElementById('health-bar').style.width = `${(player.health / player.maxHealth) * 100}%`;
-            document.getElementById('health-val').textContent = Math.floor(player.health);
+            // Calcola percentuali in modo sicuro
+            const healthPercent = Math.min(100, Math.max(0, (player.health / player.maxHealth) * 100));
+            const hungerPercent = Math.min(100, Math.max(0, player.hunger));
+            const oxygenPercent = Math.min(100, Math.max(0, player.oxygen));
 
-            document.getElementById('hunger-bar').style.width = `${player.hunger}%`;
-            document.getElementById('hunger-val').textContent = Math.floor(player.hunger);
+            document.getElementById('health-bar').style.width = healthPercent + '%';
+            document.getElementById('health-val').textContent = Math.floor(player.health) + '/' + player.maxHealth;
 
-            document.getElementById('oxygen-bar').style.width = `${player.oxygen}%`;
-            document.getElementById('oxygen-val').textContent = Math.floor(player.oxygen);
+            document.getElementById('hunger-bar').style.width = hungerPercent + '%';
+            document.getElementById('hunger-val').textContent = Math.floor(player.hunger) + '/100';
 
-            // Stats corner
+            document.getElementById('oxygen-bar').style.width = oxygenPercent + '%';
+            document.getElementById('oxygen-val').textContent = Math.floor(player.oxygen) + '/100';
+
             document.getElementById('kills-val').textContent = gameData.kills;
             document.getElementById('depth-val').textContent = gameData.maxDepth;
             document.getElementById('monsters-val').textContent = creatures.length;
 
-            // Level info
             document.getElementById('level-num').textContent = gameData.level;
 
-            // Materials progress
             const req = getRequirements(gameData.level);
             let totalNeed = 0, totalHave = 0;
             let html = '';
-            const icons = { stone: '⬜', coal: '⬛', iron: '🟤', gold: '🟡', diamond: '💎', ruby: '❤️' };
+            
+            // ICONA RUBINO CORRETTA (♦️ visibile ovunque)
+            const icons = { stone: '⬜', coal: '⬛', iron: '🟤', gold: '🟡', diamond: '💎', ruby: '♦️' };
 
             for (const [mat, amt] of Object.entries(req)) {
                 const have = inventory[mat] || 0;
                 const done = have >= amt;
                 totalNeed += amt;
                 totalHave += Math.min(have, amt);
-                html += `<div class="mat-item ${done ? 'done' : ''}">${icons[mat]} ${have}/${amt}</div>`;
+                html += '<div class="mat-item ' + (done ? 'done' : '') + '">' + icons[mat] + ' ' + have + '/' + amt + '</div>';
             }
 
             document.getElementById('materials-grid').innerHTML = html;
-            document.getElementById('progress-bar').style.width = `${(totalHave / totalNeed) * 100}%`;
+            document.getElementById('progress-bar').style.width = ((totalHave / totalNeed) * 100) + '%';
         }
 
         function startGame() {
@@ -1369,6 +1478,7 @@
             updateUI();
         }
 
+        // FUNZIONE CORRETTA: VITA SEMPRE 100/100 IN OGNI LIVELLO
         function goNextLevel() {
             document.getElementById('modal-levelup').classList.remove('active');
 
@@ -1381,9 +1491,11 @@
             gameData.level++;
             spawnCreatures();
 
-            player.health = Math.min(player.maxHealth, player.health + 25);
-            player.maxHealth += 10;
-            player.hunger = Math.min(100, player.hunger + 20);
+            // VITA SEMPRE FISSA A 100 IN OGNI LIVELLO
+            player.maxHealth = 100;
+            player.health = 100;
+            
+            addHunger(20);
             player.oxygen = 100;
 
             gameRunning = true;
@@ -1405,7 +1517,7 @@
             startGame();
         }
 
-        document.addEventListener('keydown', e => {
+        document.addEventListener('keydown', function(e) {
             const k = e.key.toLowerCase();
             if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
                 e.preventDefault();
@@ -1413,7 +1525,7 @@
             }
         });
 
-        document.addEventListener('keyup', e => {
+        document.addEventListener('keyup', function(e) {
             keys[e.key.toLowerCase()] = false;
         });
 
