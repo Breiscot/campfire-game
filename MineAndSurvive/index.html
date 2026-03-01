@@ -26,126 +26,169 @@
             left: 0;
         }
 
-        .ui-overlay {
+        /* UI Top Center - Level Info */
+        .ui-top {
             position: fixed;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            pointer-events: none;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 100;
-            gap: 10px;
+            pointer-events: none;
         }
 
         .ui-panel {
-            background: rgba(0, 0, 0, 0.9);
-            padding: 12px 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 2px solid #ffd700;
             color: #ddd;
-            pointer-events: auto;
+            text-align: center;
         }
-
-        .ui-left { min-width: 170px; }
-        .ui-center { text-align: center; border-color: #ffd700; }
-        .ui-right { min-width: 150px; }
-
-        .stat-bar { margin: 6px 0; }
-
-        .stat-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            margin-bottom: 2px;
-            color: #999;
-        }
-
-        .bar-bg {
-            width: 100%;
-            height: 8px;
-            background: #1a1a1a;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .bar-fill {
-            height: 100%;
-            transition: width 0.2s;
-            border-radius: 4px;
-        }
-
-        .health-fill { background: linear-gradient(90deg, #8b0000, #cc0000); }
-        .hunger-fill { background: linear-gradient(90deg, #8B4513, #a0522d); }
-        .oxygen-fill { background: linear-gradient(90deg, #104e8b, #1c86ee); }
-        .progress-fill { background: linear-gradient(90deg, #228b22, #32cd32); }
 
         .level-title {
-            font-size: 1.2em;
+            font-size: 1.3em;
             color: #ffd700;
             font-weight: bold;
         }
 
         .level-sub {
-            font-size: 0.75em;
+            font-size: 0.8em;
             color: #888;
-            margin-top: 2px;
+            margin-top: 4px;
         }
 
-        .progress-section { margin-top: 8px; }
+        .progress-section {
+            margin-top: 10px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #228b22, #32cd32);
+            border-radius: 6px;
+            transition: width 0.3s;
+        }
 
         .materials-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 3px;
-            margin-top: 6px;
-            font-size: 0.7em;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 0.75em;
         }
 
         .mat-item {
-            background: rgba(255,255,255,0.05);
-            padding: 2px 5px;
-            border-radius: 3px;
-            display: flex;
-            justify-content: space-between;
+            background: rgba(255,255,255,0.08);
+            padding: 3px 8px;
+            border-radius: 4px;
         }
 
         .mat-item.done {
-            background: rgba(50, 205, 50, 0.2);
+            background: rgba(50, 205, 50, 0.25);
             color: #32cd32;
         }
 
-        .inv-title {
-            font-size: 0.85em;
-            color: #ffd700;
-            border-bottom: 1px solid #333;
-            padding-bottom: 4px;
-            margin-bottom: 6px;
+        /* UI Bottom Center - Vital Stats */
+        .ui-bottom {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            pointer-events: none;
         }
 
-        .inv-item {
+        .vitals-container {
             display: flex;
-            justify-content: space-between;
-            padding: 2px 0;
-            font-size: 0.8em;
-            color: #aaa;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 2px solid #444;
         }
 
-        .stats-extra {
-            margin-top: 8px;
-            padding-top: 6px;
-            border-top: 1px solid #333;
-            font-size: 0.75em;
-            color: #666;
+        .vital-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+        }
+
+        .vital-icon {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .vital-bar-bg {
+            width: 120px;
+            height: 16px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .vital-bar-fill {
+            height: 100%;
+            transition: width 0.3s;
+            border-radius: 8px;
+        }
+
+        .vital-bar-fill.health {
+            background: linear-gradient(90deg, #8b0000, #ff2222);
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+        }
+
+        .vital-bar-fill.hunger {
+            background: linear-gradient(90deg, #8B4513, #d2691e);
+            box-shadow: 0 0 10px rgba(210, 105, 30, 0.3);
+        }
+
+        .vital-bar-fill.oxygen {
+            background: linear-gradient(90deg, #104e8b, #00bfff);
+            box-shadow: 0 0 10px rgba(0, 191, 255, 0.3);
+        }
+
+        .vital-text {
+            font-size: 0.85em;
+            color: #ccc;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        /* Stats corner */
+        .stats-corner {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            color: #888;
+            font-size: 0.8em;
+            z-index: 100;
+        }
+
+        .stats-corner div {
+            margin: 3px 0;
         }
 
         .controls-hint {
             position: fixed;
-            bottom: 12px;
-            left: 12px;
-            background: rgba(0,0,0,0.8);
-            padding: 6px 10px;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
             border-radius: 5px;
             color: #555;
             font-size: 0.7em;
@@ -217,63 +260,87 @@
         .modal-btn.danger { background: linear-gradient(135deg, #c62828, #8b0000); }
         .modal-btn.gold { background: linear-gradient(135deg, #ffd700, #daa520); color: #111; }
 
-        @media (max-width: 900px) {
-            .ui-overlay { flex-wrap: wrap; }
-            .ui-panel { padding: 8px 10px; font-size: 0.8em; }
-            .ui-center { order: -1; width: 100%; }
-        }
-
-        @media (max-width: 500px) {
-            .ui-left, .ui-right { width: 48%; min-width: auto; }
-            .materials-grid { grid-template-columns: 1fr; }
+        @media (max-width: 600px) {
+            .vitals-container {
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px 20px;
+            }
+            
+            .vital-stat {
+                flex-direction: row;
+                gap: 10px;
+                min-width: auto;
+            }
+            
+            .vital-icon {
+                font-size: 1.4em;
+                margin-bottom: 0;
+            }
+            
+            .vital-bar-bg {
+                width: 150px;
+                height: 14px;
+            }
+            
+            .vital-text {
+                min-width: 50px;
+                text-align: right;
+            }
+            
+            .materials-grid {
+                max-width: 280px;
+            }
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
 
-    <div class="ui-overlay" id="game-ui" style="display: none;">
-        <div class="ui-panel ui-left">
-            <div class="stat-bar">
-                <div class="stat-label">
-                    <span>❤️ Salute</span>
-                    <span id="health-val">100/100</span>
-                </div>
-                <div class="bar-bg"><div class="bar-fill health-fill" id="health-bar"></div></div>
-            </div>
-            <div class="stat-bar">
-                <div class="stat-label">
-                    <span>🍖 Fame</span>
-                    <span id="hunger-val">100/100</span>
-                </div>
-                <div class="bar-bg"><div class="bar-fill hunger-fill" id="hunger-bar"></div></div>
-            </div>
-            <div class="stat-bar">
-                <div class="stat-label">
-                    <span>💨 Ossigeno</span>
-                    <span id="oxygen-val">100/100</span>
-                </div>
-                <div class="bar-bg"><div class="bar-fill oxygen-fill" id="oxygen-bar"></div></div>
-            </div>
-        </div>
+    <!-- Stats Corner -->
+    <div class="stats-corner" id="game-ui" style="display: none;">
+        <div>👾 Uccisioni: <span id="kills-val">0</span></div>
+        <div>📏 Profondità: <span id="depth-val">0</span>m</div>
+        <div>👹 Mostri: <span id="monsters-val">0</span></div>
+    </div>
 
-        <div class="ui-panel ui-center">
+    <!-- Top Center - Level Info -->
+    <div class="ui-top" id="ui-top" style="display: none;">
+        <div class="ui-panel">
             <div class="level-title">⛏️ LIVELLO <span id="level-num">1</span>/10</div>
-            <div class="level-sub">Profondità: <span id="depth-val">0</span>m | Mostri: <span id="monsters-val">0</span></div>
+            <div class="level-sub">Raccogli i materiali richiesti</div>
             <div class="progress-section">
-                <div class="bar-bg" style="height:10px;">
-                    <div class="bar-fill progress-fill" id="progress-bar"></div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
                 </div>
                 <div class="materials-grid" id="materials-grid"></div>
             </div>
         </div>
+    </div>
 
-        <div class="ui-panel ui-right">
-            <div class="inv-title">🎒 Inventario</div>
-            <div id="inventory-display"></div>
-            <div class="stats-extra">
-                👾 Uccisioni: <span id="kills-val">0</span><br>
-                📦 Totale: <span id="total-mined">0</span>
+    <!-- Bottom Center - Vital Stats -->
+    <div class="ui-bottom" id="ui-bottom" style="display: none;">
+        <div class="vitals-container">
+            <div class="vital-stat">
+                <div class="vital-icon">❤️</div>
+                <div class="vital-bar-bg">
+                    <div class="vital-bar-fill health" id="health-bar"></div>
+                </div>
+                <div class="vital-text" id="health-val">100</div>
+            </div>
+            <div class="vital-stat">
+                <div class="vital-icon">🍖</div>
+                <div class="vital-bar-bg">
+                    <div class="vital-bar-fill hunger" id="hunger-bar"></div>
+                </div>
+                <div class="vital-text" id="hunger-val">100</div>
+            </div>
+            <div class="vital-stat">
+                <div class="vital-icon">💨</div>
+                <div class="vital-bar-bg">
+                    <div class="vital-bar-fill oxygen" id="oxygen-bar"></div>
+                </div>
+                <div class="vital-text" id="oxygen-val">100</div>
             </div>
         </div>
     </div>
@@ -302,7 +369,6 @@
             <p>Materiali raccolti con successo!</p>
             <p>Prossimo: <strong style="color:#ffd700;">Livello <span id="next-lvl">2</span></strong></p>
             <p class="highlight">⚠️ Creature: <span id="next-creatures">1</span></p>
-            <p style="color:#888; font-size:0.85em; margin-top:10px;">⚠️ L'inventario verrà resettato!</p>
             <button class="modal-btn" onclick="goNextLevel()">⬇️ SCENDI</button>
         </div>
     </div>
@@ -315,7 +381,6 @@
             <p>Sei riuscito a fuggire dalle profondità!</p>
             <p style="margin-top:15px;">Profondità raggiunta: <span id="vic-depth">0</span>m</p>
             <p>Creature sconfitte: <span id="vic-kills">0</span></p>
-            <p>Materiali totali minati: <span id="vic-total">0</span></p>
             <button class="modal-btn gold" onclick="restartGame()">🔄 GIOCA ANCORA</button>
         </div>
     </div>
@@ -348,9 +413,7 @@
         const WORLD_H = 500;
         const MAX_LEVEL = 10;
         const LIGHT_RADIUS = 5.5;
-
-        // VELOCITÀ DI MOVIMENTO (più alto = più lento)
-        const MOVE_COOLDOWN = 180; // millisecondi tra ogni passo
+        const MOVE_COOLDOWN = 180;
 
         const T = {
             AIR: 0, DIRT: 1, STONE: 2, COAL: 3, IRON: 4,
@@ -370,7 +433,6 @@
             [T.MUSHROOM]: '#4a3728'
         };
 
-        // Tempo di scavo per ogni minerale (in millisecondi)
         const MINING_TIME = {
             [T.DIRT]: 200,
             [T.STONE]: 400,
@@ -408,12 +470,10 @@
         let player = {};
         let creatures = [];
         let inventory = {};
-        let totalMined = {};
         let gameData = {};
         let keys = {};
         let gameRunning = false;
 
-        // Mining state
         let mining = {
             active: false,
             x: 0,
@@ -423,11 +483,8 @@
             tile: 0
         };
 
-        // Movement state
         let lastMoveTime = 0;
-        let currentMoveDir = { dx: 0, dy: 0 };
 
-        // Level requirements
         function getRequirements(lvl) {
             const req = {};
             req.stone = 6 + lvl * 2;
@@ -441,16 +498,13 @@
 
         function getCreatureCount(lvl) {
             if (lvl <= 1) return 0;
-            const base = lvl;
-            const bonus = Math.floor(lvl / 2);
-            return base + bonus;
+            return lvl + Math.floor(lvl / 2);
         }
 
         function resetLevelInventory() {
             inventory = { stone: 0, coal: 0, iron: 0, gold: 0, diamond: 0, ruby: 0 };
         }
 
-        // World generation
         function generateWorld() {
             world = [];
             for (let y = 0; y < WORLD_H; y++) {
@@ -575,7 +629,6 @@
             }
         }
 
-        // Spawn creatures
         function spawnCreatures() {
             creatures = [];
             const count = getCreatureCount(gameData.level);
@@ -621,16 +674,10 @@
             }
         }
 
-        // Player movement con cooldown
         function tryMove(dx, dy) {
             if (!gameRunning) return;
 
             const now = Date.now();
-            
-            // Salva la direzione corrente
-            currentMoveDir = { dx, dy };
-
-            // Aggiorna facing direction
             if (dx !== 0) player.facingRight = dx > 0;
 
             const nx = player.x + dx;
@@ -641,10 +688,8 @@
 
             const tile = world[ny][nx];
 
-            // Controlla collisione con creature
             const creature = creatures.find(c => Math.round(c.x) === nx && Math.round(c.y) === ny);
             if (creature) {
-                // Attacco ha il suo cooldown
                 if (now - lastMoveTime >= MOVE_COOLDOWN) {
                     attackCreature(creature);
                     lastMoveTime = now;
@@ -653,7 +698,6 @@
                 return;
             }
 
-            // Se è aria, muoviti (con cooldown)
             if (tile === T.AIR) {
                 if (now - lastMoveTime >= MOVE_COOLDOWN) {
                     movePlayer(nx, ny);
@@ -663,13 +707,11 @@
                 return;
             }
 
-            // Se è bedrock, non fare nulla
             if (tile === T.BEDROCK) {
                 mining.active = false;
                 return;
             }
 
-            // Altrimenti, inizia/continua a scavare
             if (!mining.active || mining.x !== nx || mining.y !== ny) {
                 mining.active = true;
                 mining.x = nx;
@@ -683,7 +725,6 @@
         function updateMining(dt) {
             if (!mining.active || !gameRunning) return;
 
-            // Verifica che il giocatore stia ancora premendo verso il blocco
             const dx = mining.x - player.x;
             const dy = mining.y - player.y;
 
@@ -716,7 +757,6 @@
                 }
                 if (data.inv) {
                     inventory[data.inv] = (inventory[data.inv] || 0) + 1;
-                    totalMined[data.inv] = (totalMined[data.inv] || 0) + 1;
                 }
             }
 
@@ -725,7 +765,7 @@
 
             mining.active = false;
             mining.progress = 0;
-            lastMoveTime = Date.now(); // Reset cooldown dopo mining
+            lastMoveTime = Date.now();
 
             checkLevelComplete();
             updateUI();
@@ -760,7 +800,6 @@
             updateUI();
         }
 
-        // Creature AI
         function updateCreatures() {
             const now = Date.now();
 
@@ -805,7 +844,6 @@
             });
         }
 
-        // Survival
         function updateSurvival() {
             if (!gameRunning) return;
 
@@ -850,10 +888,8 @@
             gameRunning = false;
 
             if (gameData.level >= MAX_LEVEL) {
-                const totalItems = Object.values(totalMined).reduce((a, b) => a + b, 0);
                 document.getElementById('vic-depth').textContent = gameData.maxDepth;
                 document.getElementById('vic-kills').textContent = gameData.kills;
-                document.getElementById('vic-total').textContent = totalItems;
                 document.getElementById('modal-victory').classList.add('active');
             } else {
                 document.getElementById('next-lvl').textContent = gameData.level + 1;
@@ -862,7 +898,6 @@
             }
         }
 
-        // Camera
         function getCamera() {
             const cols = Math.ceil(canvas.width / TILE);
             const rows = Math.ceil(canvas.height / TILE);
@@ -873,7 +908,6 @@
             return { x: cx, y: cy, cols, rows };
         }
 
-        // Render
         function render() {
             ctx.fillStyle = '#020204';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -886,7 +920,6 @@
             const offX = (cam.x - startX) * TILE;
             const offY = (cam.y - startY) * TILE;
 
-            // Draw tiles
             for (let y = 0; y < cam.rows + 2; y++) {
                 for (let x = 0; x < cam.cols + 2; x++) {
                     const wx = startX + x;
@@ -914,7 +947,6 @@
                         ctx.fillRect(sx, sy, TILE, 2);
                     }
 
-                    // Mushroom
                     if (tile === T.MUSHROOM && lightLevel > 0.1) {
                         ctx.globalAlpha = lightLevel;
                         ctx.fillStyle = '#cd5c5c';
@@ -931,7 +963,6 @@
                         ctx.globalAlpha = 1;
                     }
 
-                    // Ore sparkle
                     if (tile >= T.GOLD && lightLevel > 0.3 && Math.random() < 0.06) {
                         ctx.fillStyle = `rgba(255,255,255,${lightLevel * 0.8})`;
                         ctx.beginPath();
@@ -939,16 +970,13 @@
                         ctx.fill();
                     }
 
-                    // Darkness
                     const darkness = Math.max(0, 0.92 - lightLevel * 0.92);
                     ctx.fillStyle = `rgba(0,0,0,${darkness})`;
                     ctx.fillRect(sx, sy, TILE + 1, TILE + 1);
 
-                    // Mining progress
                     if (mining.active && mining.x === wx && mining.y === wy) {
                         const progress = mining.progress / mining.required;
 
-                        // Crack effect
                         ctx.strokeStyle = `rgba(0,0,0,${0.3 + progress * 0.5})`;
                         ctx.lineWidth = 2;
                         const cracks = Math.floor(progress * 5) + 1;
@@ -964,7 +992,6 @@
                             ctx.stroke();
                         }
 
-                        // Progress bar
                         ctx.fillStyle = 'rgba(0,0,0,0.7)';
                         ctx.fillRect(sx + 2, sy + TILE - 8, TILE - 4, 6);
                         ctx.fillStyle = '#ffd700';
@@ -973,7 +1000,6 @@
                 }
             }
 
-            // Draw creatures
             creatures.forEach(c => {
                 const sx = (c.x - cam.x) * TILE;
                 const sy = (c.y - cam.y) * TILE;
@@ -998,12 +1024,10 @@
                 }
             });
 
-            // Draw player
             const px = (player.x - cam.x) * TILE;
             const py = (player.y - cam.y) * TILE;
             drawPlayer(px, py);
 
-            // Light glow
             const gradient = ctx.createRadialGradient(
                 px + TILE / 2 + (player.facingRight ? 15 : -15), py + 8,
                 0,
@@ -1017,7 +1041,6 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Draw creature
         function drawCreature(c, x, y) {
             const s = TILE / 38;
             const bounce = Math.sin(c.animFrame * Math.PI) * 2;
@@ -1200,7 +1223,6 @@
             ctx.restore();
         }
 
-        // Draw player
         function drawPlayer(x, y) {
             const s = TILE / 38;
 
@@ -1209,42 +1231,34 @@
             if (!player.facingRight) ctx.scale(-1, 1);
             ctx.translate(-TILE / 2, -TILE / 2);
 
-            // Shadow
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.beginPath();
             ctx.ellipse(TILE / 2, TILE - 1, 9 * s, 3 * s, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Legs
             ctx.fillStyle = '#1a2530';
             ctx.fillRect(10 * s, 24 * s, 5 * s, 12 * s);
             ctx.fillRect(21 * s, 24 * s, 5 * s, 12 * s);
 
-            // Boots
             ctx.fillStyle = '#3d2817';
             ctx.fillRect(8 * s, 33 * s, 8 * s, 5 * s);
             ctx.fillRect(20 * s, 33 * s, 8 * s, 5 * s);
 
-            // Body
             ctx.fillStyle = '#c65d1a';
             ctx.fillRect(8 * s, 14 * s, 20 * s, 12 * s);
 
-            // Belt
             ctx.fillStyle = '#2a1a0a';
             ctx.fillRect(8 * s, 24 * s, 20 * s, 3 * s);
             ctx.fillStyle = '#b8860b';
             ctx.fillRect(16 * s, 23 * s, 4 * s, 5 * s);
 
-            // Arms
             ctx.fillStyle = '#a04d15';
             ctx.fillRect(3 * s, 15 * s, 5 * s, 9 * s);
             ctx.fillRect(28 * s, 15 * s, 5 * s, 9 * s);
 
-            // Hands
             ctx.fillStyle = '#deb887';
             ctx.fillRect(3 * s, 23 * s, 5 * s, 4 * s);
 
-            // Pickaxe with mining animation
             const pickAngle = mining.active ? Math.sin(Date.now() / 80) * 0.4 : 0;
             ctx.save();
             ctx.translate(30 * s, 20 * s);
@@ -1261,21 +1275,17 @@
             ctx.fill();
             ctx.restore();
 
-            // Head
             ctx.fillStyle = '#deb887';
             ctx.fillRect(11 * s, 3 * s, 14 * s, 12 * s);
 
-            // Hair
             ctx.fillStyle = '#3d2314';
             ctx.fillRect(11 * s, 2 * s, 14 * s, 5 * s);
             ctx.fillRect(10 * s, 4 * s, 3 * s, 5 * s);
 
-            // Helmet
             ctx.fillStyle = '#daa520';
             ctx.fillRect(9 * s, 0 * s, 18 * s, 5 * s);
             ctx.fillRect(11 * s, -1 * s, 14 * s, 3 * s);
 
-            // Helmet lamp
             ctx.fillStyle = '#fff';
             ctx.beginPath();
             ctx.arc(18 * s, 3 * s, 3 * s, 0, Math.PI * 2);
@@ -1285,33 +1295,36 @@
             ctx.arc(18 * s, 3 * s, 2 * s, 0, Math.PI * 2);
             ctx.fill();
 
-            // Eyes
             ctx.fillStyle = '#222';
             ctx.fillRect(13 * s, 8 * s, 2 * s, 2 * s);
             ctx.fillRect(21 * s, 8 * s, 2 * s, 2 * s);
 
-            // Mouth
             ctx.fillStyle = '#8b4513';
             ctx.fillRect(16 * s, 12 * s, 4 * s, 1 * s);
 
             ctx.restore();
         }
 
-        // UI
         function updateUI() {
+            // Vital bars
             document.getElementById('health-bar').style.width = `${(player.health / player.maxHealth) * 100}%`;
-            document.getElementById('health-val').textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
+            document.getElementById('health-val').textContent = Math.floor(player.health);
 
             document.getElementById('hunger-bar').style.width = `${player.hunger}%`;
-            document.getElementById('hunger-val').textContent = `${Math.floor(player.hunger)}/100`;
+            document.getElementById('hunger-val').textContent = Math.floor(player.hunger);
 
             document.getElementById('oxygen-bar').style.width = `${player.oxygen}%`;
-            document.getElementById('oxygen-val').textContent = `${Math.floor(player.oxygen)}/100`;
+            document.getElementById('oxygen-val').textContent = Math.floor(player.oxygen);
 
-            document.getElementById('level-num').textContent = gameData.level;
+            // Stats corner
+            document.getElementById('kills-val').textContent = gameData.kills;
             document.getElementById('depth-val').textContent = gameData.maxDepth;
             document.getElementById('monsters-val').textContent = creatures.length;
 
+            // Level info
+            document.getElementById('level-num').textContent = gameData.level;
+
+            // Materials progress
             const req = getRequirements(gameData.level);
             let totalNeed = 0, totalHave = 0;
             let html = '';
@@ -1322,28 +1335,18 @@
                 const done = have >= amt;
                 totalNeed += amt;
                 totalHave += Math.min(have, amt);
-                html += `<div class="mat-item ${done ? 'done' : ''}">${icons[mat]} ${mat} <span>${have}/${amt}</span></div>`;
+                html += `<div class="mat-item ${done ? 'done' : ''}">${icons[mat]} ${have}/${amt}</div>`;
             }
 
             document.getElementById('materials-grid').innerHTML = html;
             document.getElementById('progress-bar').style.width = `${(totalHave / totalNeed) * 100}%`;
-
-            let invHtml = '';
-            const allMats = ['stone', 'coal', 'iron', 'gold', 'diamond', 'ruby'];
-            allMats.forEach(m => {
-                invHtml += `<div class="inv-item"><span>${icons[m]} ${m}</span><span>${inventory[m] || 0}</span></div>`;
-            });
-            document.getElementById('inventory-display').innerHTML = invHtml;
-
-            document.getElementById('kills-val').textContent = gameData.kills;
-            const totalItems = Object.values(totalMined).reduce((a, b) => a + b, 0);
-            document.getElementById('total-mined').textContent = totalItems;
         }
 
-        // Game flow
         function startGame() {
             document.getElementById('modal-start').classList.remove('active');
-            document.getElementById('game-ui').style.display = 'flex';
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('ui-top').style.display = 'block';
+            document.getElementById('ui-bottom').style.display = 'block';
 
             player = {
                 x: Math.floor(WORLD_W / 2),
@@ -1356,7 +1359,6 @@
             };
 
             resetLevelInventory();
-            totalMined = { stone: 0, coal: 0, iron: 0, gold: 0, diamond: 0, ruby: 0 };
             gameData = { level: 1, kills: 0, maxDepth: 0 };
             creatures = [];
             mining = { active: false, x: 0, y: 0, progress: 0, required: 0, tile: 0 };
@@ -1403,7 +1405,6 @@
             startGame();
         }
 
-        // Input
         document.addEventListener('keydown', e => {
             const k = e.key.toLowerCase();
             if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
@@ -1417,7 +1418,6 @@
         });
 
         function handleInput() {
-            // Solo un movimento alla volta, con priorità
             if (keys['arrowup'] || keys['w']) {
                 tryMove(0, -1);
             } else if (keys['arrowdown'] || keys['s']) {
@@ -1429,7 +1429,6 @@
             }
         }
 
-        // Game loop
         let lastTime = 0;
         let survivalTick = 0;
 
